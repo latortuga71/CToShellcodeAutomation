@@ -2,6 +2,21 @@ import sys
 import time
 import pefile
 
+
+stack_alignment_stub = r"""_TEXT SEGMENT
+AlignRSP PROC
+    push rsi
+    mov rsi,rsp
+    and rsp, 0FFFFFFFFFFFFFFF0h
+    sub rsp, 020h
+    call main
+    mov rsp, rsi
+    pop rsi
+    ret
+AlignRSP ENDP
+_TEXT ENDS"""
+
+
 class StringObj():
     def __init__(self,variable,data) -> None:
         self.variable = variable
@@ -23,19 +38,19 @@ def write_cleaned_file(path,text) -> int:
 ### file string manipulation
 def comment_includes(line) -> str:
     if "include" in line or "INCLUDELIB" in line:
-        print("commented include")
+        print("Csommented include")
         return ";" + line
     return line
 
 def replace_short_jmps(line) -> str:
     if "SHORT" in line and "jmp" in line:
-        print("replacing short jump")
+        print("Replacing short jump")
         return line.replace("SHORT","")
     return line
 
 def add_assume(line) -> str:
     if ".model	flat" in line:
-        print("added assume")
+        print("Added assume")
         return  "	.model	flat\nassume fs:nothing\n"
     return line
 
@@ -44,6 +59,51 @@ def clean_line(line) -> str:
     line = comment_includes(line)
     line = replace_short_jmps(line)
     return line
+
+
+def remove_data(text,segment_name):
+    #pdata	SEGMENT
+    start = 0
+    end = 0
+    for i,line in enumerate(text):
+        if segment_name in line and start == 0:
+            start = i
+        if segment_name in line and "ENDS" in line and end < i:
+            end = i
+    end +=1
+    text = text[:start] + text[end:]
+    print(start,end)
+    return text
+
+
+def add_stack_alignment(text):
+    for counter,line in enumerate(text):
+        if "_TEXT" in line and "SEGMENT" in line:
+            text.insert(counter,f"{stack_alignment_stub}\n")
+            print("inserted stack alignment stub!")
+            break
+    return "".join(text)
+
+def fix_gs(line) -> str:
+    if "gs:96" in line:
+        print("Fixed gs")
+        return line.replace("gs:96","gs:[96]")
+    return line
+
+def remove_flat(line) -> str:
+    if "FLAT:" in line:
+        print("Removed FLAT")
+        return line.replace("FLAT:","")
+    return line
+
+def clean_line_x64(line) -> str:
+    line = fix_gs(line)
+    line = remove_flat(line)
+    line = add_assume(line)
+    line = comment_includes(line)
+    line = replace_short_jmps(line)
+    return line
+
 
 def get_string_variables(text) -> list:
     variables = []
@@ -120,7 +180,25 @@ def x86_mode(path_to_asm,output):
 
 
 def x64_mode(path_to_asm,output):
-    return None
+    try:
+        text = read_dirty_file(path_to_asm)
+        removed_pdata = remove_data(text,"pdata")
+        removed_xdata = remove_data(removed_pdata,"xdata")
+        fixed_text = [clean_line_x64(line) for line in removed_xdata]
+        ready_for_string_inline = add_stack_alignment(fixed_text)
+        wrote = write_cleaned_file(output,ready_for_string_inline)
+        return
+
+        test = add_stack_alignment(fixed_text)
+
+        #wrote = write_cleaned_file(output,test)
+        #array_of_strings_and_indexes = get_objects_and_data(fixed_text)
+        #inline_strings = replace_strings(fixed_text,array_of_strings_and_indexes)
+        #cleaned_file = "".join([clean_line(line) for line in inline_strings])
+        #wrote = write_cleaned_file(output,cleaned_file)
+        #print(f"Done! ")
+    except Exception as e:
+        raise e
 
 def extract_mode(path_to_exe,output):
     pe = pefile.PE(path_to_exe)
@@ -144,7 +222,7 @@ if __name__ == "__main__":
     if mode == "x86":
         x86_mode(in_,out_)
     elif mode == "x64":
-        quit()
+        x64_mode(in_,out_)
     elif mode == "extract":
         extract_mode(in_,out_)
     else:

@@ -40,7 +40,6 @@ AlignRSP PROC
     pop rsi
     ret
 AlignRSP ENDP
-
 _TEXT ENDS
 
 ## inline strings different method since x64
