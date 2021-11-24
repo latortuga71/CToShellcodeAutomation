@@ -82,7 +82,7 @@ def add_stack_alignment(text):
             text.insert(counter,f"{stack_alignment_stub}\n")
             print("inserted stack alignment stub!")
             break
-    return "".join(text)
+    return text
 
 def fix_gs(line) -> str:
     if "gs:96" in line:
@@ -165,6 +165,24 @@ def replace_strings(full_text,array_of_obj) -> str:
         for z in array_of_obj[i:]:
             z.index += 1
     return "\n".join(full_text_lines)
+
+def replace_strings_x64(full_text,array_of_obj) -> str:
+    full_text_lines = full_text.split("\n")
+    for i,x in enumerate(array_of_obj):
+        # get register
+        register = full_text_lines[x.index].split(",")[0].split("\t")[-1]
+        called = f"{x.variable[1:]}___"
+        str_to_swap = f"call {called}\n{x.data}\n{called}:\n\tpop {register}"
+        lines_added = str_to_swap.count("\n")
+        full_text_lines[x.index] = ";" + full_text_lines[x.index]
+        full_text_lines.insert(x.index,str_to_swap)
+        # increase location by one since we inserted to array
+        for z in array_of_obj[i:]:
+            z.index += 1
+    return "\n".join(full_text_lines)
+
+
+
     
 def x86_mode(path_to_asm,output):
     try:
@@ -185,18 +203,13 @@ def x64_mode(path_to_asm,output):
         removed_pdata = remove_data(text,"pdata")
         removed_xdata = remove_data(removed_pdata,"xdata")
         fixed_text = [clean_line_x64(line) for line in removed_xdata]
-        ready_for_string_inline = add_stack_alignment(fixed_text)
-        wrote = write_cleaned_file(output,ready_for_string_inline)
-        return
-
-        test = add_stack_alignment(fixed_text)
-
-        #wrote = write_cleaned_file(output,test)
-        #array_of_strings_and_indexes = get_objects_and_data(fixed_text)
-        #inline_strings = replace_strings(fixed_text,array_of_strings_and_indexes)
-        #cleaned_file = "".join([clean_line(line) for line in inline_strings])
-        #wrote = write_cleaned_file(output,cleaned_file)
-        #print(f"Done! ")
+        ready_for_string_inline = "".join(add_stack_alignment(fixed_text))
+        # do string align x64
+        array_of_strings_and_indexes = get_objects_and_data(ready_for_string_inline)
+        inline_strings = replace_strings_x64(ready_for_string_inline,array_of_strings_and_indexes)
+        wrote = write_cleaned_file(output,inline_strings)
+        #return
+        print(f"Done! ")
     except Exception as e:
         raise e
 
