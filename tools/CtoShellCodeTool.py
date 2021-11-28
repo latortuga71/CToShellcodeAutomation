@@ -153,6 +153,7 @@ def get_objects_and_data(full_text):
     return variables_and_code
                 
 def replace_strings(full_text,array_of_obj) -> str:
+    array_of_obj.sort(key=lambda x: x.index)
     full_text_lines = full_text.split("\n")
     for i,x in enumerate(array_of_obj):
         called = f"{x.variable[1:]}___"
@@ -166,13 +167,11 @@ def replace_strings(full_text,array_of_obj) -> str:
     return "\n".join(full_text_lines)
 
 def replace_strings_x64(full_text,array_of_obj) -> str:
-    print("###")
     array_of_obj.sort(key=lambda x: x.index)
     full_text_lines = full_text.split("\n")
     for i,x in enumerate(array_of_obj):
         # get register
         register = full_text_lines[x.index].split(",")[0].split("\t")[-1]
-        print(register,x.index,x.variable)
         called = f"{x.variable[1:]}___"
         str_to_swap = f"call {called}\n{x.data}\n{called}:\n\tpop {register}"
         lines_added = str_to_swap.count("\n")
@@ -184,8 +183,6 @@ def replace_strings_x64(full_text,array_of_obj) -> str:
     return "\n".join(full_text_lines)
 
 
-
-    
 def x86_mode(path_to_asm,output):
     try:
         text = read_dirty_file(path_to_asm)
