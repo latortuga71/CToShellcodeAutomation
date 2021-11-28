@@ -32,9 +32,7 @@ int main(){
 
     // start
     if (_MessageBoxA == NULL) return 1;
-    _MessageBoxA(0,"Hello World","Demo",MB_OK);
-    if (_ShellExecute == NULL) return 1;
-    _ShellExecute(NULL,"open","calc.exe",0,0,SW_SHOWNORMAL);
-    _ExitThread(0);
+    //_MessageBoxA(0,"Hello World","Demo",MB_OK);
+    
     return 0;
 }

@@ -1,5 +1,4 @@
 import sys
-import time
 import pefile
 
 
@@ -167,10 +166,13 @@ def replace_strings(full_text,array_of_obj) -> str:
     return "\n".join(full_text_lines)
 
 def replace_strings_x64(full_text,array_of_obj) -> str:
+    print("###")
+    array_of_obj.sort(key=lambda x: x.index)
     full_text_lines = full_text.split("\n")
     for i,x in enumerate(array_of_obj):
         # get register
         register = full_text_lines[x.index].split(",")[0].split("\t")[-1]
+        print(register,x.index,x.variable)
         called = f"{x.variable[1:]}___"
         str_to_swap = f"call {called}\n{x.data}\n{called}:\n\tpop {register}"
         lines_added = str_to_swap.count("\n")
@@ -202,16 +204,14 @@ def x64_mode(path_to_asm,output):
         text = read_dirty_file(path_to_asm)
         removed_pdata = remove_data(text,"pdata")
         removed_xdata = remove_data(removed_pdata,"xdata")
-        fixed_text = [clean_line_x64(line) for line in removed_xdata]
-        ready_for_string_inline = "".join(add_stack_alignment(fixed_text))
-        # do string align x64
-        array_of_strings_and_indexes = get_objects_and_data(ready_for_string_inline)
-        inline_strings = replace_strings_x64(ready_for_string_inline,array_of_strings_and_indexes)
-        wrote = write_cleaned_file(output,inline_strings)
-        #return
+        entry_added = add_stack_alignment(removed_xdata)
+        fixed_text = "".join([clean_line_x64(line) for line in entry_added])
+        array_of_strings_and_indexes = get_objects_and_data(fixed_text)
+        inlined_strings = replace_strings_x64(fixed_text,array_of_strings_and_indexes)
+        wrote = write_cleaned_file(output,inlined_strings)
         print(f"Done! ")
     except Exception as e:
-        raise e
+        print(f"Failed miserably -> {e}")
 
 def extract_mode(path_to_exe,output):
     pe = pefile.PE(path_to_exe)
