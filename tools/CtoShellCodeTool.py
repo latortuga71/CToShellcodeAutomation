@@ -74,6 +74,15 @@ def remove_data(text,segment_name):
     print(start,end)
     return text
 
+def unroll_npad(full_text) -> str:
+    full_text_lines = full_text.split("\n")
+    new_text_lines = []
+    for line in full_text_lines:
+        if "npad" in line:
+            new_text_lines.append("nop  ;\n" * 10)
+        else:
+            new_text_lines.append(line)
+    return "\n".join(new_text_lines)
 
 def add_stack_alignment(text):
     for counter,line in enumerate(text):
@@ -205,7 +214,8 @@ def x64_mode(path_to_asm,output):
         fixed_text = "".join([clean_line_x64(line) for line in entry_added])
         array_of_strings_and_indexes = get_objects_and_data(fixed_text)
         inlined_strings = replace_strings_x64(fixed_text,array_of_strings_and_indexes)
-        wrote = write_cleaned_file(output,inlined_strings)
+        added_nops = unroll_npad(inlined_strings)
+        wrote = write_cleaned_file(output,added_nops)
         print(f"Done! ")
     except Exception as e:
         print(f"Failed miserably -> {e}")
